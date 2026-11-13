@@ -10,6 +10,7 @@ import java.io.*;
 
 public final class PrepareFixture extends Activity {
     private static final String MOD="BepInEx/plugins/20MTDModernization/";
+    static final String LOCALCONFIG="\"UserLocalConfigStore\"\r\n{\r\n\t\"Software\"\r\n\t{\r\n\t\t\"Valve\"\r\n\t\t{\r\n\t\t\t\"Steam\"\r\n\t\t\t{\r\n\t\t\t\t\"apps\"\r\n\t\t\t\t{\r\n\t\t\t\t\t\"1966900\"\r\n\t\t\t\t\t{\r\n\t\t\t\t\t\t\"LaunchOptions\"\t\t\"PROTON_LOG=1 %command%\"\r\n\t\t\t\t\t}\r\n\t\t\t\t\t\"3669620\"\r\n\t\t\t\t\t{\r\n\t\t\t\t\t\t\"LastPlayed\"\t\t\"1794600000\"\r\n\t\t\t\t\t}\r\n\t\t\t\t}\r\n\t\t\t}\r\n\t\t}\r\n\t}\r\n\t\"friends\"\r\n\t{\r\n\t\t\"note\"\t\t\"keep \\\"this\\\" // untouched\"\r\n\t}\r\n}\r\n";
     private static void require(boolean condition,String message) { if(!condition)throw new IllegalStateException(message); }
     private static String hash(byte[] bytes)throws Exception { StringBuilder value=new StringBuilder();for(byte b:java.security.MessageDigest.getInstance("SHA-256").digest(bytes))value.append(String.format(java.util.Locale.ROOT,"%02x",b&255));return value.toString(); }
     @Override public void onCreate(Bundle state) {
@@ -24,6 +25,15 @@ public final class PrepareFixture extends Activity {
                 write(game,"WarhammerSurvivors.exe","stock-exe".getBytes("UTF-8"));write(game,"GameAssembly.dll","stock-assembly".getBytes("UTF-8"));
                 write(game,"version.dll","loader-v1".getBytes("UTF-8"));write(game,"Mods/WHSurvivorsTweaks.dll","mod-manual-old".getBytes("UTF-8"));
                 write(game,"UserData/WHSurvivorsTweaks.cfg","keep-settings".getBytes("UTF-8"));write(game,"UserLibs/Other.dll","other-mod".getBytes("UTF-8"));
+                Uri tree=DocumentsContract.buildTreeDocumentUri(FixtureProvider.AUTHORITY,name);
+                grantUriPermission("org.darkaxt.revamped.updater",tree,Intent.FLAG_GRANT_READ_URI_PERMISSION|Intent.FLAG_GRANT_WRITE_URI_PERMISSION|Intent.FLAG_GRANT_PREFIX_URI_PERMISSION);
+                if(receiver!=null)receiver.send(1,new Bundle());
+                finish();return;
+            }
+            if(getIntent().getBooleanExtra("steam_layout",false)) {
+                write(root,"config/loginusers.vdf","\"users\"\n{\n\t\"76561197972611406\"\n\t{\n\t\t\"AccountName\"\t\t\"fixture\"\n\t\t\"MostRecent\"\t\t\"1\"\n\t\t\"Timestamp\"\t\t\"1794600000\"\n\t}\n}\n".getBytes("UTF-8"));
+                write(root,"userdata/0/config/localconfig.vdf","\"UserLocalConfigStore\"\n{\n}\n".getBytes("UTF-8"));
+                write(root,"userdata/12345678/config/localconfig.vdf",LOCALCONFIG.getBytes("UTF-8"));
                 Uri tree=DocumentsContract.buildTreeDocumentUri(FixtureProvider.AUTHORITY,name);
                 grantUriPermission("org.darkaxt.revamped.updater",tree,Intent.FLAG_GRANT_READ_URI_PERMISSION|Intent.FLAG_GRANT_WRITE_URI_PERMISSION|Intent.FLAG_GRANT_PREFIX_URI_PERMISSION);
                 if(receiver!=null)receiver.send(1,new Bundle());

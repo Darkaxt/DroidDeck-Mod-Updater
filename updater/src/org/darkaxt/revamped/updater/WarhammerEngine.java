@@ -15,6 +15,8 @@ import java.util.*;
  */
 final class WarhammerEngine {
     static final String FOLDER = "Warhammer Survivors", EXE = "WarhammerSurvivors.exe";
+    /** Steam app id (appmanifest_3669620.acf). */
+    static final int APP_ID = 3669620;
     static final String RECORD = "UserData/WHSurvivorsTweaks.install.json", MOD = "Mods/WHSurvivorsTweaks.dll";
     /** The mod's own files: a manual (zip) installation of an older version may be replaced. */
     private static final Set<String> ADOPTABLE = new HashSet<>(Arrays.asList(MOD, "WHSurvivorsTweaks.txt"));

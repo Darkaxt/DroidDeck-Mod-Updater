@@ -4,7 +4,7 @@ import argparse,hashlib,json,re,shutil,subprocess,urllib.request
 
 ROOT=Path(__file__).resolve().parents[1]
 REPO='Darkaxt/DroidDeck-Mod-Updater'
-VERSION='0.3.0';VERSION_CODE=3;TAG='updater-v'+VERSION;APK='DroidDeck-Mod-Updater-'+VERSION+'.apk'
+VERSION='0.3.1';VERSION_CODE=4;TAG='updater-v'+VERSION;APK='DroidDeck-Mod-Updater-'+VERSION+'.apk'
 parser=argparse.ArgumentParser(description=__doc__)
 parser.add_argument('action',choices=['prepare','publish','verify'])
 parser.add_argument('--package',required=True,type=Path)

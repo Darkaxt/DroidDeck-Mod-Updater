@@ -25,6 +25,7 @@ public final class UpdaterInstrumentation extends Instrumentation {
             else if(mode.equals("delivery-audit")) audit(report);
             else if(mode.equals("warhammer")) warhammer(report);
             else if(mode.equals("warhammer-live")) warhammerLive(report);
+            else if(mode.equals("launch-options")) launchOptions(report);
             else ui(mode,report);
             report.put("ok",true).put("elapsed_ms",(System.nanoTime()-started)/1000000); result.putString("report",report.toString()); finish(Activity.RESULT_OK,result);
         } catch(Throwable failure) { try{report.put("ok",false).put("error",failure.toString());}catch(Exception ignored){} result.putString("report",report.toString()); finish(Activity.RESULT_CANCELED,result); }
@@ -118,7 +119,7 @@ public final class UpdaterInstrumentation extends Instrumentation {
         String[] preserved={prefix+"user.reg",profile+"notes.txt",prefix+"drive_c/users/steamuser/AppData/LocalLow/Flanne/OtherGame/gamedata.json","library/steamapps/compatdata/123456/pfx/drive_c/users/steamuser/AppData/LocalLow/Flanne/MinutesTillDawn/gamedata.json","library/steamapps/common/20MinuteTillDawn/BepInEx/config/revamped.cfg"};
         JSONObject hashes=new JSONObject();for(String path:preserved)hashes.put(path,granted.hash(path));
         try { SaveTransition.plan(context,new SafGame(context.getContentResolver(),DocumentsContract.buildTreeDocumentUri(FixtureProvider.AUTHORITY,game.rootId)));throw new AssertionError("narrow grant must require reconnection"); }catch(IllegalStateException expected){require(expected.getMessage().contains("Reconnect"),"game-only grant rejected before mutations");}
-        context.getSharedPreferences("MainActivity",0).edit().putString("gameTree",tree.toString()).putString("gameDocumentId",game.rootId).commit();
+        context.getSharedPreferences("MainActivity",0).edit().putString("gameTree",tree.toString()).putString("gameDocumentId",game.rootId).putString("selectedGame",MainActivity.REVAMPED).commit();
         MainActivity activity=(MainActivity)startActivitySync(new Intent(context,MainActivity.class).addFlags(Intent.FLAG_ACTIVITY_NEW_TASK));await(activity);
         runOnMainSync(()->{try{java.lang.reflect.Field field=MainActivity.class.getDeclaredField("release");field.setAccessible(true);field.set(activity,release);java.lang.reflect.Method render=MainActivity.class.getDeclaredMethod("renderButtons");render.setAccessible(true);render.invoke(activity);}catch(Exception error){throw new RuntimeException(error);}});
         require(((Button)activity.findViewById(MainActivity.DEPLOY_BUTTON)).getText().toString().contains("Reset saves"),"native action announces reset");capture(activity,report,"reset_warning_png");runOnMainSync(()->activity.finish());
@@ -203,13 +204,55 @@ public final class UpdaterInstrumentation extends Instrumentation {
         try { new WarhammerEngine(context).deploy(game,release,message->{});throw new AssertionError("expected loader conflict"); }catch(IllegalStateException expected){require(expected.getMessage().contains("version.dll"),"foreign loader refused: "+expected.getMessage());}
         require(!new WarhammerEngine(context).pending()&&WarhammerEngine.installed(game)==null,"refusal changed nothing");
         java.util.Set<String> remove=new java.util.HashSet<>(java.util.Arrays.asList("version.dll"));SafGame owner=new SafGame(context.getContentResolver(),tree,root).owning(remove);owner.deleteExpected("version.dll",game.hash("version.dll"));
+        // Install through the app's own button, as a player does: the activity has already read the folder before installing.
+        context.getSharedPreferences("MainActivity",0).edit().putString("whTree",tree.toString()).putString("whDocumentId",root).putString("selectedGame","warhammer").commit();
+        MainActivity activity=(MainActivity)startActivitySync(new Intent(context,MainActivity.class).addFlags(Intent.FLAG_ACTIVITY_NEW_TASK));await(activity);
+        runOnMainSync(()->{try{java.lang.reflect.Field field=MainActivity.class.getDeclaredField("whRelease");field.setAccessible(true);field.set(activity,release);java.lang.reflect.Method render=MainActivity.class.getDeclaredMethod("renderButtons");render.setAccessible(true);render.invoke(activity);}catch(Exception failure){throw new RuntimeException(failure);}});
+        String before=((Button)activity.findViewById(MainActivity.DEPLOY_BUTTON)).getText().toString();require(before.equals("Install "+release.version),"install offered: "+before);
         long started=System.nanoTime();
-        new WarhammerEngine(context).deploy(new SafGame(context.getContentResolver(),tree,root),release,message->{});
+        click(activity,MainActivity.DEPLOY_BUTTON);await(activity);
+        String after=((Button)activity.findViewById(MainActivity.DEPLOY_BUTTON)).getText().toString(),shown=((TextView)activity.findViewById(MainActivity.INSTALLED)).getText().toString();
+        require(after.equals("Open DroidDeck")&&shown.equals(release.version),"after installing the button offers to play: "+after+" / installed "+shown);
+        capture(activity,report,"warhammer_live_done_png");runOnMainSync(()->activity.finish());
         game=new SafGame(context.getContentResolver(),tree,root);JSONObject record=WarhammerEngine.installed(game);
         require(record!=null&&record.getString("version").equals(release.version)&&record.getJSONArray("files").length()==release.files.length(),"real package installed and recorded");
         for(java.util.Iterator<String> it=release.files.keys();it.hasNext();){String path=it.next();require(game.hash(path).equals(release.files.getString(path)),"installed "+path);}
         require(game.hash("UserData/WHSurvivorsTweaks.cfg").equals(SafGame.hash("keep-settings".getBytes("UTF-8"))),"settings preserved");
-        report.put("live_version",release.version).put("live_files",release.files.length()).put("install_ms",(System.nanoTime()-started)/1000000).put("manual_mod_replaced",true).put("foreign_loader_refused",true);
+        report.put("live_version",release.version).put("live_files",release.files.length()).put("install_ms",(System.nanoTime()-started)/1000000).put("manual_mod_replaced",true).put("foreign_loader_refused",true).put("button_after_install",after);
+    }
+    /** DroidDeck's Steam launch option: settings-file edits, then a staged write in an isolated fixture Steam folder. */
+    private void launchOptions(JSONObject report)throws Exception {
+        String wanted=WarhammerRelease.LAUNCH,original=PrepareFixture.LOCALCONFIG;
+        SteamLaunchOptions.Vdf vdf=new SteamLaunchOptions.Vdf(original);
+        require("PROTON_LOG=1 %command%".equals(vdf.launchOptions(1966900))&&vdf.launchOptions(3669620)==null,"existing values read");
+        String added=vdf.withLaunchOptions(3669620,wanted);
+        require(wanted.equals(new SteamLaunchOptions.Vdf(added).launchOptions(3669620))&&added.contains("\"LaunchOptions\"\t\t\"WINEDLLOVERRIDES=\\\"version=n,b\\\" %command%\"\r\n"),"value added with escaped quotes: "+added);
+        require(added.replace("\t\t\t\t\t\t\"LaunchOptions\"\t\t\"WINEDLLOVERRIDES=\\\"version=n,b\\\" %command%\"\r\n","").equals(original),"only one line added");
+        String replaced=new SteamLaunchOptions.Vdf(added).withLaunchOptions(3669620,"X \"y\" %command%");
+        require("X \"y\" %command%".equals(new SteamLaunchOptions.Vdf(replaced).launchOptions(3669620))&&new SteamLaunchOptions.Vdf(replaced).launchOptions(1966900).equals("PROTON_LOG=1 %command%"),"value replaced in place");
+        String created=new SteamLaunchOptions.Vdf("\"UserLocalConfigStore\"\n{\n\t\"Software\"\n\t{\n\t}\n}\n").withLaunchOptions(3669620,wanted);
+        require(wanted.equals(new SteamLaunchOptions.Vdf(created).launchOptions(3669620)),"missing sections created: "+created);
+        require(wanted.equals(SteamLaunchOptions.merged(null,wanted,"version=n,b"))&&wanted.equals(SteamLaunchOptions.merged("  ",wanted,"version=n,b")),"empty becomes the option");
+        require("WINEDLLOVERRIDES=\"version=n,b\" PROTON_LOG=1 %command%".equals(SteamLaunchOptions.merged("PROTON_LOG=1 %command%",wanted,"version=n,b")),"existing %command% options kept");
+        require((wanted+" -windowed").equals(SteamLaunchOptions.merged("-windowed",wanted,"version=n,b")),"plain arguments kept");
+        require(SteamLaunchOptions.merged("WINEDLLOVERRIDES=\"d3d11=n\" %command%",wanted,"version=n,b")==null,"another override is not overwritten");
+        require("A WINEDLLOVERRIDES=\"version=n,b\" %command%".equals(SteamLaunchOptions.merged("A WINEDLLOVERRIDES=\"version=n,b\" %command%",wanted,"version=n,b")),"already present stays");
+        String name=arguments.getString("fixture_name");require(name!=null,"isolated fixture required");
+        java.util.concurrent.CountDownLatch prepared=new java.util.concurrent.CountDownLatch(1);Bundle preparation=new Bundle();
+        android.os.ResultReceiver receiver=new android.os.ResultReceiver(null){@Override protected void onReceiveResult(int code,Bundle data){preparation.putBoolean("ok",code==1);preparation.putAll(data);prepared.countDown();}};
+        getContext().startActivity(new Intent().setClassName("org.darkaxt.revamped.updater.tests",PrepareFixture.class.getName()).addFlags(Intent.FLAG_ACTIVITY_NEW_TASK).putExtra("fixture_name",name).putExtra("steam_layout",true).putExtra("receiver",receiver));
+        prepared.await();require(preparation.getBoolean("ok"),"fixture preparation: "+preparation.getString("error"));
+        android.content.Context context=getTargetContext();Uri tree=DocumentsContract.buildTreeDocumentUri(FixtureProvider.AUTHORITY,name);
+        SafGame steam=new SafGame(context.getContentResolver(),tree,name);String config="userdata/12345678/config/localconfig.vdf";
+        require("userdata/12345678/config".equals(SteamLaunchOptions.accountConfig(steam)),"most recent account chosen");
+        require(SteamLaunchOptions.apply(context,steam,3669620,wanted,"version=n,b",false)==SteamLaunchOptions.State.SET&&steam.hash(config).equals(SafGame.hash(original.getBytes("UTF-8"))),"read-only check changes nothing");
+        require(SteamLaunchOptions.apply(context,steam,3669620,wanted,"version=n,b",true)==SteamLaunchOptions.State.SET,"option written");
+        steam=new SafGame(context.getContentResolver(),tree,name);
+        require(new String(steam.read(config),"UTF-8").equals(added),"file holds exactly the one added line");
+        require(steam.hash(config+".revamped-previous").equals(SafGame.hash(original.getBytes("UTF-8")))&&!steam.exists(config+".revamped-next"),"previous file kept as backup, no staging left");
+        require(SteamLaunchOptions.apply(context,new SafGame(context.getContentResolver(),tree,name),3669620,wanted,"version=n,b",true)==SteamLaunchOptions.State.ALREADY,"second run is a no-op");
+        require(SteamLaunchOptions.apply(context,null,3669620,wanted,"version=n,b",true)==SteamLaunchOptions.State.NO_STEAM,"no DroidDeck Steam reported");
+        report.put("launch_option_written",true).put("backup_kept",true);
     }
     private void click(MainActivity activity,int id) {
         runOnMainSync(()->{Button button=activity.findViewById(id);require(button.isShown()&&button.isEnabled(),"native action enabled "+id);button.performClick();});

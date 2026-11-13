@@ -38,6 +38,8 @@ public final class MainActivity extends Activity {
     private WarhammerRelease whRelease;
     private SafGame whGame;
     private String whInstalledVersion;
+    /** Launch option state in DroidDeck's Steam; SET means it still needs setting. Null while unknown. */
+    private SteamLaunchOptions.State whLaunch;
 
     private TextView status, installed, available, notes, location, headline, foot, gameLabel, launchText;
     private Button choose, check, deploy, tabRevamped, tabWarhammer, copy;
@@ -119,9 +121,9 @@ public final class MainActivity extends Activity {
         launchCard = new LinearLayout(this); launchCard.setOrientation(LinearLayout.VERTICAL); launchCard.setPadding(dp(16), dp(12), dp(16), dp(12)); launchCard.setBackground(surface(0xff302c40, 12));
         LinearLayout.LayoutParams launchLayout = new LinearLayout.LayoutParams(-1, -2); launchLayout.topMargin = dp(20); content.addView(launchCard, launchLayout);
         text(launchCard, "One-time Steam setting (MelonLoader needs it under Proton)", 14, 0xffa9b5aa);
-        launchText = text(launchCard, "In DroidDeck's Steam: Warhammer Survivors › Properties › Launch options:\n" + WarhammerRelease.LAUNCH, 15, 0xffffe3c3); launchText.setTextIsSelectable(true);
+        launchText = text(launchCard, "Set automatically after installing (close DroidDeck first), or in Steam › Warhammer Survivors › Properties › Launch options:\n" + WarhammerRelease.LAUNCH, 15, 0xffffe3c3); launchText.setTextIsSelectable(true);
         copy = new Button(this); copy.setId(COPY_BUTTON); copy.setAllCaps(false); copy.setText("Copy launch option"); copy.setTextColor(0xfffc7580); copy.setBackgroundTintList(android.content.res.ColorStateList.valueOf(0x00242032));
-        launchCard.addView(copy, new LinearLayout.LayoutParams(-2, dp(48))); copy.setOnClickListener(view -> copyLaunchOption());
+        launchCard.addView(copy, new LinearLayout.LayoutParams(-2, dp(48))); copy.setOnClickListener(view -> { if (whLaunch == SteamLaunchOptions.State.SET && whGame != null) execute(() -> progress(setLaunchOption(true, "Launch option set in DroidDeck's Steam. Start Warhammer Survivors from DroidDeck."))); else copyLaunchOption(); });
         TextView changes = text(content, "What’s new", 19, 0xffffe3c3); changes.setPadding(0, dp(28), 0, dp(8)); changes.setTypeface(Typeface.create("sans-serif-medium", 0));
         notes = text(content, "Check GitHub to see the latest changes.", 16, 0xffe3d8cf); notes.setLineSpacing(dp(4), 1); notes.setTextIsSelectable(true);
         LinearLayout footer = new LinearLayout(this); footer.setOrientation(LinearLayout.VERTICAL); footer.setPadding(pad, dp(8), pad, dp(18)); column.addView(footer, new LinearLayout.LayoutParams(-1, -2));
@@ -199,6 +201,22 @@ public final class MainActivity extends Activity {
         Intent intent = getPackageManager().getLaunchIntentForPackage("com.droiddeck.launcher");
         if (intent != null) startActivity(intent); else progress("DroidDeck is not installed.");
     }
+    /** Reads (write=false) or sets the Steam launch option; returns the message for the player. Never fails the install. */
+    private String setLaunchOption(boolean write, String done) {
+        try {
+            whLaunch = SteamLaunchOptions.apply(this, SteamLaunchOptions.steam(this, whGame.tree), WarhammerEngine.APP_ID, whRelease != null ? whRelease.launchOptions : WarhammerRelease.LAUNCH, "version=n,b", write);
+            if (write && whLaunch == SteamLaunchOptions.State.SET) { whLaunch = SteamLaunchOptions.State.ALREADY; return done; }
+        } catch (Exception failure) {
+            whLaunch = null;
+            return "Installed and verified, but the launch option could not be set (" + failure.getMessage() + "). Copy it into Steam › Properties.";
+        }
+        switch (whLaunch) {
+            case ALREADY: return "Installed and verified. The launch option is already set. Open DroidDeck to play.";
+            case OTHER_OVERRIDE: return "Installed and verified. Your Steam launch options already set WINEDLLOVERRIDES: add version=n,b to it in Steam › Properties.";
+            case NO_STEAM: return "Installed and verified. Copy the launch option into Steam › Warhammer Survivors › Properties.";
+            default: return done;
+        }
+    }
     private void copyLaunchOption() {
         String value = whRelease != null ? whRelease.launchOptions : WarhammerRelease.LAUNCH;
         ((ClipboardManager)getSystemService(CLIPBOARD_SERVICE)).setPrimaryClip(ClipData.newPlainText("Steam launch option", value));
@@ -206,11 +224,11 @@ public final class MainActivity extends Activity {
     }
     private void primaryAction() {
         if (wh()) {
-            if (whEngine.pending()) execute(() -> { whEngine.finish(this::progress); updatedHere = true; refreshInstalled(); progress("Installation verified. Open DroidDeck to play."); });
+            if (whEngine.pending()) execute(() -> { whEngine.finish(this::progress); updatedHere = true; refreshInstalled(); progress(setLaunchOption(true, "Installed and verified. Launch option set in DroidDeck's Steam. Open DroidDeck to play.")); });
             else if (whGame == null) chooseFolder();
             else if (whRelease == null) checkGitHub();
             else if (whInstalledVersion != null && GitHubRelease.compareVersions(whRelease.version, whInstalledVersion) <= 0) openDroidDeck();
-            else execute(() -> { whEngine.deploy(whGame, whRelease, this::progress); updatedHere = true; refreshInstalled(); progress("Installation verified. Open DroidDeck to play."); });
+            else execute(() -> { whEngine.deploy(whGame, whRelease, this::progress); updatedHere = true; refreshInstalled(); progress(setLaunchOption(true, "Installed and verified. Launch option set in DroidDeck's Steam. Open DroidDeck to play.")); });
             return;
         }
         if (engine.pending()) execute(() -> { engine.finish(this::progress); updatedHere = true; refreshInstalled(); progress("Update verified. Open DroidDeck to play."); });
@@ -264,12 +282,16 @@ public final class MainActivity extends Activity {
     }
 
     private void refreshInstalled() throws Exception {
+        // SafGame caches folder listings; installs write through their own instance, so re-read through a fresh one.
         if (wh()) {
+            if (whGame != null) whGame = new SafGame(getContentResolver(), whGame.tree, whGame.rootId);
             JSONObject data = whGame == null ? null : WarhammerEngine.installed(whGame);
             whInstalledVersion = data == null ? null : data.getString("version");
+            if (whGame != null) setLaunchOption(false, null);
             runOnUiThread(() -> { if (wh()) installed.setText(whInstalledVersion == null ? "None" : whInstalledVersion); });
             return;
         }
+        game = new SafGame(getContentResolver(), game.tree, game.rootId);
         JSONObject data = UpdateEngine.installed(game);
         installedVersion = data.getString("version");
         installedEpoch = data.optInt("rune_save_epoch",0);
@@ -315,6 +337,8 @@ public final class MainActivity extends Activity {
         boolean current = whRelease != null && whInstalledVersion != null && GitHubRelease.compareVersions(whRelease.version, whInstalledVersion) <= 0;
         String action = interrupted ? "Finish interrupted installation" : whGame == null ? "Connect DroidDeck" : whRelease == null ? "Check GitHub" : current ? "Open DroidDeck" : (whInstalledVersion == null ? "Install " : "Update to ") + whRelease.version;
         deploy.setText(action); deploy.setEnabled(!busy);
+        boolean launchSet = whLaunch == SteamLaunchOptions.State.ALREADY;
+        copy.setText(launchSet ? "Launch option set ✓" : whLaunch == SteamLaunchOptions.State.SET ? "Set launch option" : "Copy launch option"); copy.setEnabled(!busy && !launchSet);
         headline.setText(interrupted ? "Finish your installation" : whGame == null ? "Connect your game" : whRelease == null ? "Game connected" : current ? "You’re up to date" : whInstalledVersion == null ? "Ready to install" : "Ready to update");
         progress.setVisibility(busy ? View.VISIBLE : View.GONE);
         foot.setText(updatedHere ? "Installed. The first game start takes a few minutes while MelonLoader prepares its files." : "Close the game in DroidDeck before installing. Saves and mod settings stay in place.");
