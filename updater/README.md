@@ -29,8 +29,13 @@ version. The app checks GitHub's asset digests, the manifest and every zip membe
 - Owned files that a newer release drops are removed, unless you changed them.
 - Writes are journaled. If the app is interrupted, reopen it and tap **Finish interrupted installation**. Do not
   clear the app's data while that is pending.
-- Proton needs the launch option `WINEDLLOVERRIDES="version=n,b" %command%` to load MelonLoader. The app shows it
-  and copies it; set it in the game's Steam properties inside DroidDeck.
+- Proton needs the launch option `WINEDLLOVERRIDES="version=n,b" %command%` to load MelonLoader. After installing,
+  the app sets it in DroidDeck's Steam the way DroidDeck's Launch tab does while Steam is closed: only
+  `apps/3669620/LaunchOptions` in `userdata/<account>/config/localconfig.vdf` changes (account from
+  `config/loginusers.vdf`), the previous file is kept as `localconfig.vdf.revamped-previous`, existing options are
+  kept and a different `WINEDLLOVERRIDES` is never replaced. A running Steam may overwrite it on exit; the
+  **Set launch option** button retries.
+- After installing, the main button changes to **Open DroidDeck**.
 
 ## 20 Minutes Till Dawn Revamped
 
@@ -57,7 +62,7 @@ python -B updater/build.py --work D:/Temp/ddmu-build/work --output D:/Temp/ddmu-
 
 `--work` must be a new directory. The output holds the signed APK, its certificate check and a source digest receipt.
 `--tests` adds the separate instrumentation APK (never distributed). Its fixture modes (`recovery`, `rune-reset`,
-`warhammer`, `warhammer-live`) run in the test app's private storage and drive the production buttons.
+`warhammer`, `warhammer-live`, `launch-options`) run in the test app's private storage and drive the production buttons.
 
 `release.py prepare | publish | verify` packages a committed build as `updater-v<version>`.
 

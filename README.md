@@ -20,9 +20,9 @@ modded game does not need its own APK. It downloads ordinary GitHub releases; no
 
 1. In the app, open the **Warhammer Survivors** tab. It finds the game in your Steam library.
 2. Close the game, tap **Check GitHub**, then **Install 1.3.0** (the version shown).
-3. In DroidDeck, set the game's Steam launch options to
-   `WINEDLLOVERRIDES="version=n,b" %command%` (the app has a **Copy launch option** button). Without it,
-   Proton ignores MelonLoader.
+3. The app also sets the game's Steam launch options to `WINEDLLOVERRIDES="version=n,b" %command%` (without it,
+   Proton ignores MelonLoader). Close DroidDeck before installing so its Steam does not overwrite the setting; if it
+   did, tap **Set launch option**. You can also set it yourself in DroidDeck's Launch tab.
 4. Start the game. The first start takes a few minutes while MelonLoader prepares its files.
 
 The app only writes the mod package (`version.dll`, `MelonLoader/`, `Mods/`, `UserLibs/`, `Plugins/`,

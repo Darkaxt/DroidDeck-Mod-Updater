@@ -1,3 +1,4 @@
-Fix: after installing or updating a mod, the main button now changes to **Open DroidDeck** and the installed version updates. Before, it kept offering **Install 1.3.0** until the app was reopened (the installation itself was fine).
+- **Fix:** after installing or updating a mod, the main button now changes to **Open DroidDeck** and the installed version updates. Before, it kept offering **Install 1.3.0** until the app was reopened (the installation itself was fine).
+- **Warhammer Survivors launch option is now set for you.** After installing, the app adds `WINEDLLOVERRIDES="version=n,b" %command%` to the game's launch options in DroidDeck's Steam, the same setting DroidDeck's Launch tab edits. Close DroidDeck first, or Steam may overwrite it when it exits; the **Set launch option** button retries. Your existing launch options are kept, the previous settings file is kept as `localconfig.vdf.revamped-previous`, and a different `WINEDLLOVERRIDES` you set yourself is never replaced.
 
 Installs over 0.3.0 and Revamped Updater 0.2.0. `SHA256SUMS.txt` lists the APK digest.
