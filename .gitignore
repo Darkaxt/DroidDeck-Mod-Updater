@@ -1,0 +1,9 @@
+bin/
+obj/
+warhammer-survivors/installer/*.dll
+warhammer-survivors/release/*.zip
+warhammer-survivors/release/WHSurvivorsTweaks-*.json
+__pycache__/
+*.apk
+*.p12
+signing.json

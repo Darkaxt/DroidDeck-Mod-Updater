@@ -1,0 +1,57 @@
+[size=5][b]Twin-Stick Controls & Auto-Aim[/b][/size]
+
+Twin-stick controls for gamepads: the left stick moves, the right stick aims. While the right stick is released, auto-aim targets the nearest enemy on screen.
+
+[size=4][b]Main features[/b][/size]
+[list]
+[*][b]Twin-stick aiming[/b]: the left stick moves and the right stick aims. Weapons that fire in the direction you face fire where the right stick points.
+[*][b]Auto-aim[/b]: with the right stick released, the aim locks onto the nearest enemy on screen. Push the stick to take over; let go and auto-aim resumes.
+[*][b]Character faces the aim[/b]: your character turns towards where you aim, not where you walk.
+[*][b]Optional ultrawide support[/b], off by default (see Credits).
+[*]Every feature can be switched on or off in a config file.
+[/list]
+Keyboard and mouse controls are unchanged. Weapons that pick their own targets (nearest or random enemy) keep doing so. No game files are modified.
+
+[size=4][b]Installation[/b][/size]
+[list=1]
+[*]Close the game. In Steam, right-click Warhammer Survivors > Manage > Browse local files.
+[*]Copy everything in the zip into that folder (next to WarhammerSurvivors.exe). Replace files if asked.
+[*]Start the game. The first start takes a few minutes while MelonLoader prepares its files.
+[/list]
+MelonLoader 0.7.3 is included. If you already use MelonLoader 0.7.3 (for example for the Crossover mod), you only need [i]Mods\WHSurvivorsTweaks.dll[/i].
+
+[b]Steam Deck / Linux (Proton):[/b] set the game's launch options to:
+[code]WINEDLLOVERRIDES="version=n,b" %command%[/code]
+
+[b]Updating:[/b] copy the new files over the old ones.
+[b]After a game update:[/b] nothing to do; MelonLoader regenerates its files on the next start.
+[b]Uninstall:[/b] delete [i]Mods\WHSurvivorsTweaks.dll[/i]. To remove MelonLoader too, delete [i]version.dll[/i] and the [i]MelonLoader[/i] folder (only if no other mod needs them). Your save is not touched.
+
+[size=4][b]Settings[/b][/size]
+[i]UserData\WHSurvivorsTweaks.cfg[/i] is created on the first start. Edit it with the game closed.
+[list]
+[*][b]TwinStickAim[/b] (true): left stick moves, right stick aims. false = stock controls.
+[*][b]AutoAim[/b] (true): with the right stick released, aim at the nearest enemy on screen.
+[*][b]KeepAimOnRelease[/b] (true): with no auto-aim target, the aim stays where it last pointed. false = aim follows movement.
+[*][b]CharacterFacesAim[/b] (true): the character faces the aim direction.
+[*][b]AimDeadzone[/b] (0.35): how far the right stick must be pushed before it changes the aim.
+[*][b]Ultrawide[/b] (false): removes the 16:10 limit on wider screens.
+[*][b]AimStickName[/b], [b]VerboseLog[/b]: advanced / troubleshooting.
+[/list]
+
+[size=4][b]Compatibility[/b][/size]
+[list]
+[*]Requires MelonLoader 0.7.3 (included). Works alongside other MelonLoader 0.7.3 mods such as Crossover.
+[*]BepInEx mods use a different mod loader; running BepInEx and MelonLoader together is not supported.
+[*]Hush's Ultrawide Support Patch (DLL version) can be used together with this mod; leave Ultrawide = false.
+[/list]
+
+[size=4][b]Requirements[/b][/size]
+Warhammer Survivors on Steam, tested on v2.1.6 (Unity 6000.0.74f1). A controller with two sticks.
+
+[size=4][b]Credits[/b][/size]
+[list]
+[*]The optional [b]Ultrawide[/b] setting is a MelonLoader port of the fix from [url=https://www.nexusmods.com/warhammersurvivors/mods/2]Hush's Ultrawide Support Patch[/url]. All credit for that fix goes to Hush. Please use and endorse the original; the option exists only for players who want everything in one MelonLoader mod.
+[*][url=https://github.com/LavaGang/MelonLoader]MelonLoader[/url] by LavaGang (Apache-2.0), included unmodified.
+[*]Auroch Digital and Games Workshop for the game. This mod is unofficial and not affiliated with or endorsed by them.
+[/list]
